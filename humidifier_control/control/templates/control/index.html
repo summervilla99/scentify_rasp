@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scentify Control App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic&display=swap" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nanum Gothic', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            width: 500px;
+            height: 700px;
+            background-color: #97CDF1;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .custom-switch {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-timer {
+            background-color: #fef691;
+            color: black;
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        const relayPin1 = {{ RELAY_PIN_1 }};
+        const relayPin2 = {{ RELAY_PIN_2 }};
+        
+        function getCSRFToken() {
+            const name = 'csrftoken';
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function toggleHumidifier(pin, checkbox, forceState) {
+            const desiredState = forceState !== undefined ? forceState : (checkbox.checked ? 1 : 0);
+            fetch('/control/app/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: new URLSearchParams({
+                    'pin': pin,
+                    'state': desiredState
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    checkbox.checked = (data.humidifier_state === 1);
+                } else {
+                    alert('Failed to control.');
+                    checkbox.checked = !checkbox.checked;
+                }
+            });
+        }
+
+        function activateTimer(pin, checkbox) {
+            fetch('/control/app/timer/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: new URLSearchParams({
+                    'pin': pin,
+                    'duration': 3
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Timer sets for 3 seconds');
+                    setTimeout(() => {
+                        toggleHumidifier(pin, checkbox, 0);
+                    }, 3000);
+                } else {
+                    alert('Failed to activate timer.');
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Scentify Control App</h1>
+        <br>
+        <div style="padding-top:100px;">
+            <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="toggle_{{ RELAY_PIN_1 }}" onchange="toggleHumidifier(relayPin1, this)" {% if state_1 %}checked{% endif %}>
+                <label class="custom-control-label" for="toggle_{{ RELAY_PIN_1 }}">Rosemary</label>
+            </div>
+            <button class="btn btn-timer" onclick="activateTimer(relayPin1, document.getElementById('toggle_{{ RELAY_PIN_1 }}'))">Timer (3s)</button>
+            <br><br>
+            <div class="custom-control custom-switch mt-4">
+                <input type="checkbox" class="custom-control-input" id="toggle_{{ RELAY_PIN_2 }}" onchange="toggleHumidifier(relayPin2, this)" {% if state_2 %}checked{% endif %}>
+                <label class="custom-control-label" for="toggle_{{ RELAY_PIN_2 }}">Lemon</label>
+            </div>
+            <button class="btn btn-timer" onclick="activateTimer(relayPin2, document.getElementById('toggle_{{ RELAY_PIN_2 }}'))">Timer (3s)</button>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
